@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.pt
+*.pth
+node_modules/
+build/
+dist/
+.env
+.env.local
+*.pem
