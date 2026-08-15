@@ -45,7 +45,7 @@ jobs:
           pytest backend/
 
   frontend-build:
-    name: Frontend Build Check
+    name: Next.js Build Check
     runs-on: ubuntu-latest
 
     steps:
@@ -56,13 +56,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install & Verify Frontend Build
+        working-directory: ./frontend
         run: |
-          if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
-            cd frontend
-            npm ci || npm install
-            npm run build --if-present
-          else
-            echo "Frontend directory not yet configured, skipping."
-          fi
+          npm ci
+          # Next.js comes with ESLint built-in, so we check for bad code first
+          npm run lint
+          # Test if the application can actually compile for production
+          npm run build
