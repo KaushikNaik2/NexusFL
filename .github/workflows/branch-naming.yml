@@ -1,0 +1,24 @@
+name: Enforce Branch Naming
+
+on:
+  pull_request:
+    branches: [ "dev" ]
+
+jobs:
+  enforce-naming-convention:
+    name: Check Branch Name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Branch Prefix
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "Evaluating branch: $BRANCH_NAME"
+
+          if [[ ! "$BRANCH_NAME" =~ ^feature-[a-zA-Z0-9_-]+$ ]]; then
+            echo "::error::Invalid branch name: '$BRANCH_NAME'."
+            echo "::error::All branches must start with 'feature-' (e.g., feature-ml-model)."
+            echo "::error::To fix this locally, run: git branch -m feature-your-branch-name"
+            exit 1
+          fi
+
+          echo "Branch name '$BRANCH_NAME' is valid! Proceeding..."
