@@ -31,7 +31,7 @@ if __name__ == "__main__":
     initial_model = FraudMLP()
     initial_parameters = fl.common.ndarrays_to_parameters(get_weights(initial_model))
 
-    strategy = fl.server.strategy.FedAvg(
+    strategy = fl.server.strategy.FedProx(
         fraction_fit=1.0,
         fraction_evaluate=1.0,
         min_fit_clients=2,
@@ -40,6 +40,7 @@ if __name__ == "__main__":
         initial_parameters=initial_parameters,
         evaluate_metrics_aggregation_fn=aggregate_metrics,
         on_fit_config_fn=lambda server_round: {"local_epochs": 1},
+        proximal_mu=0.1,
     )
 
     print("Starting NexusFL Server...")

@@ -85,7 +85,7 @@ if __name__ == "__main__":
     print(f"[{args.cid}] Starting on {device}")
 
     train_dl, val_dl = load_local_data(args.cid)
-    fl.client.start_numpy_client(
+    fl.client.start_client(
         server_address=args.server,
-        client=FraudClient(args.cid, train_dl, val_dl, device)
+        client=FraudClient(args.cid, train_dl, val_dl, device).to_client()
     )
