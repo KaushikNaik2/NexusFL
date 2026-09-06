@@ -14,27 +14,39 @@ Financial institutions lose billions annually to sophisticated, cross-network fr
 
 ## 🏗️ System Architecture
 
-NexusFL isolates the machine learning workloads across decentralized edge nodes, communicating securely over a peer-to-peer Tailscale mesh network.
+NexusFL enforces strict Separation of Concerns. The asynchronous federated training pipeline (Phase 1) is completely decoupled from the real-time REST inference pipeline (Phase 2), connected only by a finalized Model Registry.
 
 ```text
 +-----------------------------------------------------------------------+
-|                      API MIDDLEWARE & UI (PHASE 2)                    |
-|  [ React / Next.js Dashboard ] ◄──► [ FastAPI Service ] ◄──► [ Redis ]|
-+-----------------------------------▲-----------------------------------+
-                                    │ (gRPC / Port 8081)
-+-----------------------------------▼-----------------------------------+
-|               FEDERATED ORCHESTRATION (FLOWER SERVER)                 |
+|                   PHASE 2: REAL-TIME INFERENCE & UI                   |
 |                                                                       |
-|         Branch: dev (FedAvg)  |  Branch: feature-fedprox-upgrade      |
-|           (IID Data)          |       (Non-IID Label Skew)            |
-+-----------------------------------▲-----------------------------------+
-                                    │ (Encrypted Model Weights)
-+-----------------------------------▼-----------------------------------+
-|               SECURE EDGE NODES (TAILSCALE MESH NETWORK)              |
+|  [ Analyst ] ◄──► [ Next.js UI ] ◄──► [ Nginx ] ◄──► [ FastAPI ]      |
+|                                                          ▲   ▲        |
+|                                                          │   ▼        |
+|                                   (Loads Weights) ───────┘ [ Redis ]  |
++------------------------------------------▲----------------------------+
+                                           │
++------------------------------------------│----------------------------+
+|                   PHASE 1: CENTRAL AGGREGATION CLOUD                  |
+|                                          │                            |
+|                           [ Model Registry (global_model.pt) ]        |
+|                                          ▲                            |
+|                              (Saves Final Weights)                    |
+|                                          │                            |
+|                 [ Flower Federated Aggregator (FedProx) ]             |
++------------------------------------------▲----------------------------+
+                                           │ (Encrypted Weights Only)
++==========================================▼============================+
+|                  TAILSCALE WIREGUARD MESH (gRPC TUNNEL)               |
++==========================================▲============================+
+                                           │ (Encrypted Weights Only)
++------------------------------------------▼----------------------------+
+|                 DECENTRALIZED EDGE NODES (DATA PLANE)                 |
 |                                                                       |
-|     [ Bank Node 1 (RTX 3050) ]          [ Bank Node 2 (CPU Edge) ]    |
-|     - Local Data (bank_1.pt)            - Local Data (bank_2.pt)      |
-|     - Local SMOTE & RobustScaler        - Local SMOTE & RobustScaler  |
+|    [ Bank Node 1 (RTX 3050) ]           [ Bank Node 2 (CPU Edge) ]    |
+|    - Local Proprietary DB               - Local Proprietary DB        |
+|    - ETL (SMOTE & RobustScaler)         - ETL (SMOTE & RobustScaler)  |
+|    - PyTorch Local Model                - PyTorch Local Model         |
 +-----------------------------------------------------------------------+
 ```
 
@@ -54,7 +66,7 @@ NexusFL isolates the machine learning workloads across decentralized edge nodes,
 | **Machine Learning Engine** | PyTorch, Scikit-Learn, Pandas, Imbalanced-Learn |
 | **Federated Orchestration** | Flower (flwr), FedAvg, FedProx |
 | **Networking & Security** | Tailscale (P2P Mesh), gRPC, Bandit (SAST) |
-| **Backend & Dashboard** *(Upcoming)*| FastAPI, Uvicorn, Python 3.11, React, Next.js |
+| **Backend & Dashboard** *(Phase 2)*| FastAPI, Uvicorn, Python 3.11, React, Next.js, Redis |
 
 ---
 
@@ -136,10 +148,14 @@ python client.py --cid=bank_2 --server=127.0.0.1:8081
 ---
 
 ## 🗺️ Project Roadmap
+
+### Phase 1: The Federated ML Engine & Infrastructure (Current)
 - [x] **Sprint 1:** Architecture design, PyTorch MLP construction, and evaluation metric shift to PR-AUC.
 - [x] **Sprint 2:** Homogeneous (IID) federated network setup using Flower; successful FedAvg baseline established.
-- [x] **Sprint 3:** Heterogeneous (Non-IID) data simulation; system upgraded to FedProx to successfully mitigate client drift.
-- [ ] **Sprint 4:** Decoupled FastAPI integration and REST endpoints for model inference.
+- [x] **Sprint 3:** Heterogeneous (Non-IID) data simulation; system upgraded to FedProx to successfully mitigate client drift over Tailscale.
+
+### Phase 2: The Application Layer & UI (Upcoming)
+- [ ] **Sprint 4:** Decoupled FastAPI integration, Model Registry hookup, and REST endpoints for model inference.
 - [ ] **Sprint 5:** Next.js React dashboard development for real-time visualization of network convergence.
 
 ---
@@ -156,3 +172,6 @@ Developed within the Information Technology Department at **A. P. Shah Institute
 
 ---
 **License:** MIT License
+
+README.md
+Displaying README.md
