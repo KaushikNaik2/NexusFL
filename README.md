@@ -14,140 +14,145 @@ Financial institutions lose billions annually to sophisticated, cross-network fr
 
 ## 🏗️ System Architecture
 
-NexusFL isolates the machine learning workloads from the user presentation layer, incorporating DevSecOps principles and edge-node data adapters.
+NexusFL isolates the machine learning workloads across decentralized edge nodes, communicating securely over a peer-to-peer Tailscale mesh network.
 
 ```text
 +-----------------------------------------------------------------------+
-|                            USER INTERFACE                             |
-|       [ React / Next.js Dashboard ]   [ Bank Analyst Screener UI ]    |
+|                      API MIDDLEWARE & UI (PHASE 2)                    |
+|  [ React / Next.js Dashboard ] ◄──► [ FastAPI Service ] ◄──► [ Redis ]|
 +-----------------------------------▲-----------------------------------+
-                                    │ (REST / JSON)
+                                    │ (gRPC / Port 8081)
 +-----------------------------------▼-----------------------------------+
-|                     API MIDDLEWARE & NETWORKING                       |
-|  [ Nginx Load Balancer ] ◄──► [ FastAPI Service ] ◄──► [ Redis Cache ]|
+|               FEDERATED ORCHESTRATION (FLOWER SERVER)                 |
+|                                                                       |
+|         Branch: dev (FedAvg)  |  Branch: feature-fedprox-upgrade      |
+|           (IID Data)          |       (Non-IID Label Skew)            |
 +-----------------------------------▲-----------------------------------+
-|                                   │ (In-Memory Weights / Logs)
-|  +--------------------------------▼--------------------------------+  |
-|  |                    FEDERATED MACHINE LEARNING                   |  |
-|  |                                                                 |  |
-|  |  [ Bank Node A ]   [ Bank Node B ]   [ Bank Node C ] (PyTorch)  |  |
-|  |        │                 │                 │                    |  |
-|  |        └────────┬────────┴────────┬────────┘                    |  |
-|  |                 ▼                 ▼                             |  |
-|  |            [ Flower Central Server ] (FedAvg Aggregation)       |  |
-|  +-----------------------------------------------------------------+  |
+                                    │ (Encrypted Model Weights)
++-----------------------------------▼-----------------------------------+
+|               SECURE EDGE NODES (TAILSCALE MESH NETWORK)              |
+|                                                                       |
+|     [ Bank Node 1 (RTX 3050) ]          [ Bank Node 2 (CPU Edge) ]    |
+|     - Local Data (bank_1.pt)            - Local Data (bank_2.pt)      |
+|     - Local SMOTE & RobustScaler        - Local SMOTE & RobustScaler  |
 +-----------------------------------------------------------------------+
 ```
 
-### Core Features
-* **Zero-Knowledge Collaboration:** Powered by the Flower framework, the central server aggregates encrypted model weights via Federated Averaging (FedAvg). Raw data never leaves the bank's firewall.
-* **Non-IID Edge Adapters:** Real-world banks have different data schemas and customer demographics. Local ETL Adapters at each edge node clean, normalize, and map proprietary data into a canonical 30-feature PyTorch tensor before training begins.
-* **Class Imbalance Mitigation:** Fraud represents <0.2% of transactions. The data pipelines utilize SMOTE and WeightedRandomSampler to prevent models from defaulting to naive predictions.
-* **Shift-Left DevSecOps:** The repository enforces a strict 3-branch GitFlow strategy. Automated GitHub Actions run Bandit (SAST) and dependency audits on every Pull Request to prevent vulnerability regressions.
-* **Real-Time Inference & Dashboard:** A decoupled FastAPI layer serves model predictions in milliseconds (backed by Redis caching), while a React dashboard visualizes federated network convergence in real-time.
+### Core Technical Features
+* **Zero-Knowledge Collaboration:** Powered by the Flower framework, the central server aggregates encrypted PyTorch model weights. Raw transaction data never leaves the bank's local hardware.
+* **Algorithmic Mitigation of Client Drift:** Real-world banks have different fraud exposures. Our architecture simulates extreme label skew (90/10 fraud distribution) and utilizes **FedProx** ($\mu = 0.1$) to apply proximal regularization, preventing local model divergence.
+* **PR-AUC Optimization:** Because fraud represents <0.17% of transactions, standard accuracy is a flawed metric. The network evaluates strictly on Precision-Recall AUC (PR-AUC) and exact confusion matrix counts, enforcing a rigid `0.15` decision threshold to prioritize high recall.
+* **Data Leakage Prevention:** The local ETL pipeline applies `RobustScaler` and `SMOTE` (Synthetic Minority Over-sampling Technique) strictly to the training subsets *after* the train/test split, ensuring the validation data remains pristine and mathematically honest.
+* **Hardware Heterogeneity & Mesh Networking:** The system dynamically binds to CUDA or CPU depending on the node's hardware. Communication bypasses traditional cloud vulnerabilities using a private, peer-to-peer Tailscale mesh network.
+
+---
 
 ## 💻 Tech Stack
 
 | Layer | Technologies Used |
 | :--- | :--- |
-| **Machine Learning** | PyTorch, Scikit-Learn, Pandas |
-| **Federated Engine** | Flower (flwr) |
-| **Backend API** | FastAPI, Uvicorn, Python 3.11 |
-| **Frontend UI** | React, Next.js, TailwindCSS |
-| **Infrastructure & Security** | Docker, Nginx, Redis, Bandit (SAST), GitHub Actions |
+| **Machine Learning Engine** | PyTorch, Scikit-Learn, Pandas, Imbalanced-Learn |
+| **Federated Orchestration** | Flower (flwr), FedAvg, FedProx |
+| **Networking & Security** | Tailscale (P2P Mesh), gRPC, Bandit (SAST) |
+| **Backend & Dashboard** *(Upcoming)*| FastAPI, Uvicorn, Python 3.11, React, Next.js |
+
+---
 
 ## 📂 Repository Structure
 
 ```bash
 NexusFL/
 │
-├── .github/workflows/       # CI/CD pipelines (Bandit SAST, PyTest)
-├── .pre-commit-config.yaml  # Secret scanning and static analysis hooks
+├── .github/workflows/       # CI/CD pipelines (Bandit SAST, formatting)
+├── .pre-commit-config.yaml  # Static analysis and trailing whitespace hooks
 │
-├── ml_engine/               # Core Federated Learning environment
-│   ├── data/                # Data preprocessing & SMOTE scripts
-│   ├── server.py            # Flower central orchestrator (FedAvg)
-│   ├── client.py            # Local PyTorch models wrapped in NumPyClient
-│   └── adapter.py           # Local ETL mapping for Non-IID datasets
+├── backend/                 # Core Federated Learning Environment
+│   ├── data/                # [IGNORED] Kaggle CSV and generated .pt tensors
+│   ├── adapter.py           # ETL pipeline: non-IID partitioning & SMOTE
+│   ├── model.py             # 3-layer PyTorch MLP (4,129 parameters)
+│   ├── client.py            # Local edge node training loop & metric extraction
+│   ├── server.py            # Flower central orchestrator (FedProx aggregation)
+│   └── SETUP.md             # Detailed hardware & networking setup guide
 │
-├── backend/                 # FastAPI Application
-│   ├── main.py              # REST routing (/predict, /metrics)
-│   ├── schemas.py           # Pydantic validation models
-│   └── tests/               # Unit and integration tests
-│
-└── frontend/                # React / Next.js Web App
-    ├── components/          # Analyst form & FL Admin charts
-    └── pages/               # Dashboard views
+└── frontend/                # [Phase 2] React / Next.js Web App
 ```
 
-## 🚀 Getting Started
+---
+
+## 🚀 Getting Started (Federated Simulation)
 
 ### 1. Prerequisites
-Ensure you have Python 3.11+ and Node.js installed. We recommend using a virtual environment (e.g., conda or venv).
+* Python 3.11+
+* Kaggle API token (`kaggle.json`) installed in `~/.kaggle/`
 
-### 2. Installation & Setup
-Clone the repository and install the backend/ML dependencies:
+### 2. Environment Setup
+Clone the repository and set up your virtual environment:
 
 ```bash
-git clone [https://github.com/your-username/NexusFL.git](https://github.com/your-username/NexusFL.git)
-cd NexusFL
+git clone https://github.com/your-username/NexusFL.git
+cd NexusFL/backend
 
-# Set up virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+# Set up and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install requirements
-pip install -r requirements.txt
+# Install dependencies
+pip install flwr pandas scikit-learn imbalanced-learn kaggle torch
 ```
 
-### 3. Running the Federated Simulation (Local Terminal Method)
-To simulate the physical separation of banks, run the following commands in separate terminal windows:
+### 3. Data Ingestion & ETL
+Download the Kaggle Credit Card dataset and generate the simulated bank nodes:
 
-**Terminal 1: Start the Flower Server**
 ```bash
-cd ml_engine
+mkdir -p data
+kaggle datasets download -d mlg-ulb/creditcardfraud -p data --unzip
+python adapter.py
+```
+
+### 4. Run the Network (Local or Tailscale)
+Open three separate terminal windows (ensure `.venv` is activated in each). 
+
+**Terminal 1 (The Orchestrator):**
+
+```bash
 python server.py
 ```
 
-**Terminal 2 & 3: Start the Bank Clients**
-```bash
-# In a new terminal
-cd ml_engine
-python client.py --node-id 1
-
-# In a new terminal
-cd ml_engine
-python client.py --node-id 2
-```
-
-### 4. Running the Dashboard Services
-Start the Redis cache (requires Docker) and the FastAPI backend:
+**Terminal 2 (Bank Node 1):**
 
 ```bash
-docker run -d -p 6379:6379 redis
-cd backend
-uvicorn main:app --reload --port 8000
+# Replace 127.0.0.1 with the server's Tailscale IP if running across different machines
+python client.py --cid=bank_1 --server=127.0.0.1:8081
 ```
 
-Start the React frontend:
+**Terminal 3 (Bank Node 2):**
 
 ```bash
-cd frontend
-npm install
-npm run dev
+python client.py --cid=bank_2 --server=127.0.0.1:8081
 ```
+
+*Training will automatically trigger when the minimum client threshold is met.*
+
+---
 
 ## 🗺️ Project Roadmap
-- [x] **Sprint 1:** Architecture design, dataset acquisition (Kaggle), and centralized PyTorch baseline evaluation.
-- [ ] **Sprint 2:** Homogeneous (IID) federated network setup using Flower; initial FedAvg testing.
-- [ ] **Sprint 3:** Heterogeneous (Non-IID) data simulation; implementation of local ETL adapters and hyperparameter tuning.
-- [ ] **Sprint 4:** FastAPI integration, React dashboard development, and Redis/Nginx containerization.
-- [ ] **Sprint 5:** End-to-end integration testing and performance evaluation vs. baseline.
+- [x] **Sprint 1:** Architecture design, PyTorch MLP construction, and evaluation metric shift to PR-AUC.
+- [x] **Sprint 2:** Homogeneous (IID) federated network setup using Flower; successful FedAvg baseline established.
+- [x] **Sprint 3:** Heterogeneous (Non-IID) data simulation; system upgraded to FedProx to successfully mitigate client drift.
+- [ ] **Sprint 4:** Decoupled FastAPI integration and REST endpoints for model inference.
+- [ ] **Sprint 5:** Next.js React dashboard development for real-time visualization of network convergence.
 
-## 👥 Team & Roles
-* **Machine Learning Architect:** PyTorch model design, Flower orchestration, and non-IID data partitioning.
-* **Backend & Systems Engineer:** API middleware, DevSecOps pipeline automation, and local execution scripting.
-* **Frontend UI Developer:** Next.js dashboard development, metric visualization, and documentation.
+---
+
+## 👥 Team & Academic Context
+Developed within the Information Technology Department at **A. P. Shah Institute of Technology (APSIT), Mumbai University**.
+
+* **Kaushik Naik** — *Lead ML & Systems Architect*
+  Designed the core Federated Learning pipeline, engineered the PyTorch MLP, enforced the PR-AUC evaluation matrix, and developed the non-IID data partitioning logic.
+* **Nitesh Pangle** — *GPU Infrastructure & Orchestration Lead*
+  Responsible for managing the high-compute (RTX 3050/CUDA) node, orchestrating the global `server.py` aggregation rounds, and maintaining the Tailscale mesh network topology. 
+* **Aditya Mishra** — *Edge-Node Analyst & Validation Lead*
+  Responsible for simulating low-compute edge banking environments (CPU node), executing client-side benchmarks, and managing the project's analytical presentation (Business Tradeoff Matrix).
 
 ---
 **License:** MIT License
