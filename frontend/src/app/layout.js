@@ -1,28 +1,22 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const dmSans = DM_Sans({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-dm-sans",
 });
 
 export const metadata = {
-  title: "NexusFL — Decentralized Fraud Analyst Dashboard",
-  description: "Zero-Trust Federated Intelligence Platform for Cross-Institutional Banking Security",
+  title: "NexusFL — Federated Intelligence Matrix",
+  description: "Decentralized Cross-Bank Federated Intelligence Matrix for real-time fraud detection and privacy-preserving model aggregation.",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${dmSans.variable} h-full antialiased`}>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }
+

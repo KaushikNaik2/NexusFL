@@ -183,6 +183,106 @@ class TestFastAPIInferenceBlackBox(unittest.TestCase):
         self.assertEqual(data["total_processed"], 2)
         self.assertEqual(len(data["predictions"]), 2)
 
+    def test_get_alerts_endpoint(self):
+        """GET /alerts returns edge alert feed."""
+        response = self.client.get("/alerts")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("alerts", data)
+        self.assertIn("total", data)
+        self.assertIsInstance(data["alerts"], list)
+
+    def test_audit_action_record_and_update(self):
+        """POST /alerts/audit logs analyst resolution for confirmed fraud or false positive."""
+        payload = {
+            "transaction_id": "TX-AUDIT-TEST-001",
+            "status": "CONFIRMED_FRAUD",
+            "analyst": "test_analyst",
+            "notes": "Verified fraudulent pattern via test suite",
+        }
+        response = self.client.post("/alerts/audit", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["alert"]["status"], "CONFIRMED_FRAUD")
+        self.assertEqual(data["alert"]["reviewed_by"], "test_analyst")
+
+    def test_auth_login_bank_manager_persona(self):
+        """POST /auth/login authenticates pre-seeded Bank Manager persona."""
+        payload = {
+            "email": "manager@hdfc-node.internal",
+            "password": "valid_password",
+            "role": "manager",
+        }
+        response = self.client.post("/auth/login", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("access_token", data)
+        self.assertEqual(data["user"]["role"], "manager")
+        self.assertEqual(data["user"]["title"], "Bank Manager")
+        self.assertEqual(data["user"]["name"], "Dr. Vikram Seth")
+
+    def test_auth_login_platform_admin_persona(self):
+        """POST /auth/login authenticates pre-seeded Platform Admin persona."""
+        payload = {
+            "email": "admin@nexusfl.mesh",
+            "password": "admin_password",
+            "role": "admin",
+        }
+        response = self.client.post("/auth/login", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["user"]["role"], "admin")
+        self.assertEqual(data["user"]["title"], "Platform Admin")
+
+    def test_auth_signup_new_bank_node(self):
+        """POST /auth/signup registers a new bank node and operator."""
+        payload = {
+            "name": "Rajesh Kumar",
+            "email": "r.kumar@icici-mesh.internal",
+            "institution": "ICICI Bank Node Gamma",
+            "role": "manager",
+            "node_type": "sql",
+            "password": "secure_passkey_123",
+        }
+        response = self.client.post("/auth/signup", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "registered")
+        self.assertEqual(data["user"]["name"], "Rajesh Kumar")
+        self.assertEqual(data["user"]["email"], "r.kumar@icici-mesh.internal")
+        self.assertEqual(data["user"]["institution"], "ICICI Bank Node Gamma")
+
+    def test_auth_signup_duplicate_email_fails(self):
+        """POST /auth/signup returns HTTP 400 when registering already existing email."""
+        payload = {
+            "name": "Duplicate Test",
+            "email": "manager@hdfc-node.internal",
+            "institution": "Duplicate Bank",
+            "role": "manager",
+            "password": "password",
+        }
+        response = self.client.post("/auth/signup", json=payload)
+        self.assertEqual(response.status_code, 400)
+
+    def test_auth_personas_endpoint(self):
+        """GET /auth/personas returns list of personas."""
+        response = self.client.get("/auth/personas")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("personas", data)
+        self.assertGreaterEqual(len(data["personas"]), 4)
+
+    def test_auth_me_endpoint(self):
+        """GET /auth/me returns current user profile."""
+        response = self.client.get("/auth/me")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("email", data)
+        self.assertIn("role", data)
+
 
 if __name__ == "__main__":
     unittest.main()

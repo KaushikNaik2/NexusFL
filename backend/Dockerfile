@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source code
 COPY . .
 
+# Generate canonical PyTorch model weights if not present
+RUN python -c "import os, torch; from model import FraudMLP; m = FraudMLP(input_dim=30); os.path.exists('global_model.pt') or torch.save(m.state_dict(), 'global_model.pt')"
+
 # Create non-root system user for security compliance
 RUN useradd -u 10001 -m appuser && \
     chown -R appuser:appuser /app
