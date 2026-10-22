@@ -1,0 +1,12 @@
+{
+  "name": "nexusfl-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zero-Trust Cross-Institutional Banking Fraud Intelligence Platform",
+  "scripts": {
+    "dev": "./run.sh",
+    "start": "./run.sh",
+    "docker:up": "docker compose -f infra/docker-compose.yml up --build",
+    "docker:down": "docker compose -f infra/docker-compose.yml down"
+  }
+}
